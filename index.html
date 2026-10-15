@@ -1,0 +1,353 @@
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Little World for pupu nyenyo ♡</title>
+<style>
+*{box-sizing:border-box}
+body{
+  margin:0;background:#061c19;color:#d7f4df;
+  font-family:monospace;padding:20px;
+}
+.wrap{max-width:1050px;margin:auto}
+header{text-align:center;padding:14px}
+h1{font-size:clamp(24px,5vw,40px);letter-spacing:3px;margin:8px}
+.sub{color:#83c9a5}
+.layout{display:grid;grid-template-columns:1fr 270px;gap:12px}
+.panel{border:1px solid #64b998;border-radius:14px;padding:14px;background:#08231f}
+.stats{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.bar{height:14px;background:#183e35;border-radius:20px;overflow:hidden;margin-top:8px}
+#fill{height:100%;width:75%;background:#83d8a9;transition:width .3s}
+.scene{
+  position:relative;margin-top:12px;overflow:hidden;
+  border:1px solid #477f6a;border-radius:12px;
+  background:linear-gradient(#101e35 0%,#26374a 54%,#182b25 54%,#0b1d18 100%);
+}
+canvas{width:100%;display:block;image-rendering:pixelated}
+.dialog{display:flex;gap:12px;align-items:center;min-height:90px}
+.avatar{font-size:30px}
+#message{line-height:1.7;white-space:pre-line}
+.actions{display:flex;flex-direction:column;gap:9px}
+button{
+  border:1px solid #65bd96;border-radius:10px;padding:13px;
+  background:#10382e;color:#e2f7e7;font:inherit;text-align:left;
+  cursor:pointer;transition:transform .15s,background .15s;
+}
+button:hover{background:#1a5140;transform:translateY(-2px)}
+button:active{transform:scale(.97)}
+.small{font-size:12px;color:#a6d9bc}
+.note{margin-top:12px;line-height:1.8;color:#a9d8ba}
+#toast{color:#a0efc0;min-height:24px}
+@media(max-width:700px){
+  body{padding:10px}
+  .layout{grid-template-columns:1fr}
+  .actions{display:grid;grid-template-columns:1fr 1fr}
+  button{padding:11px;font-size:12px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div>♥　✦　♥</div>
+  <h1>MY BOYFRIEND ♡</h1>
+  <div class="sub">— two boys, one little world —</div>
+</header>
+
+<div class="panel stats">
+  <div>♥ Mood: <b id="moodText">75 / 100</b>
+    <div class="bar" style="width:180px"><div id="fill"></div></div>
+  </div>
+  <div>Status<br><b id="status">Happy today ♡</b></div>
+  <div>☾ Our little room</div>
+</div>
+
+<div class="layout" style="margin-top:12px">
+  <main>
+    <div class="scene">
+      <canvas id="game" width="480" height="360"></canvas>
+    </div>
+    <div class="panel dialog" style="margin-top:10px">
+      <div class="avatar">♡</div>
+      <div>
+        <div id="message">Kamu datang! Hari ini mau manja-manja? ♡</div>
+        <div id="toast"></div>
+      </div>
+    </div>
+    <div class="panel note">
+      ✦ LITTLE REMINDER<br>
+      Kamu nggak harus selalu sempurna untuk disayang.
+      Terima kasih sudah hadir di dunia kecil ini. ♡
+    </div>
+  </main>
+
+  <aside class="panel">
+    <h3 style="margin-top:0">♡ Interaksi</h3>
+    <div class="actions">
+      <button onclick="act('pat')">🖐 Puk puk kepala<br><span class="small">naikkan mood +12</span></button>
+      <button onclick="act('hug')">♡ Peluk erat<br><span class="small">naikkan mood +18</span></button>
+      <button onclick="act('kiss')">♥ Cium pipi<br><span class="small">naikkan mood +20</span></button>
+      <button onclick="act('love')">✉ Bilang I love you<br><span class="small">naikkan mood +10</span></button>
+      <button onclick="act('talk')">☏ Ajak ngobrol<br><span class="small">naikkan mood +8</span></button>
+      <button onclick="act('gift')">🎁 Kasih hadiah<br><span class="small">naikkan mood +15</span></button>
+    </div>
+    <div class="note">
+      <b>Dear pupu nyenyo ♡</b><br>
+      Makasih udah jadi bagian dari cerita kecil ini.
+      Semoga hari kamu selalu punya alasan buat tersenyum.
+    </div>
+  </aside>
+</div>
+</div>
+
+<script>
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
+let mood=75;
+let action="idle";
+let actionStart=0;
+let lastAction=Date.now();
+let hearts=[];
+let stars=Array.from({length:35},()=>({
+  x:Math.random()*480,y:Math.random()*190,
+  s:Math.random()<.5?2:3
+}));
+let message="Kamu datang! Hari ini mau manja-manja? ♡";
+let toast="";
+let toastUntil=0;
+
+function act(type){
+  const gains={pat:12,hug:18,kiss:20,love:10,talk:8,gift:15};
+  const texts={
+    pat:"puk puk... sini, aku elus kepalamu ♡",
+    hug:"Sini peluk dulu, jangan pergi dulu ya. ♥",
+    kiss:"Cup! Satu ciuman buat kamu. ♡",
+    love:"I love you,pupu nyenyo. More than words can say. ♥",
+    talk:"Hari ini gimana? Aku dengerin, cerita aja.",
+    gift:"Hadiah kecil buat orang kesayanganku! 🎁"
+  };
+  mood=Math.min(100,mood+gains[type]);
+  action=type;
+  actionStart=Date.now();
+  lastAction=Date.now();
+  message=texts[type];
+  toast="♡ +" + gains[type] + " mood";
+  toastUntil=Date.now()+1800;
+  for(let i=0;i<7;i++){
+    hearts.push({
+      x:220+Math.random()*50,
+      y:190+Math.random()*35,
+      vy:0.6+Math.random()*1.2,
+      vx:(Math.random()-.5)*1.4,
+      life:70,
+      color:["#ff91ad","#a4f2c0","#fff0bd"][i%3]
+    });
+  }
+  updateUI();
+}
+
+function rect(x,y,w,h,color){
+  ctx.fillStyle=color;ctx.fillRect(Math.round(x),Math.round(y),w,h);
+}
+
+function heart(x,y,size,color){
+  ctx.fillStyle=color;
+  ctx.fillRect(x+size,y,size, size);
+  ctx.fillRect(x+size*2,y,size,size);
+  ctx.fillRect(x,y+size,size,size);
+  ctx.fillRect(x+size*3,y+size,size,size);
+  ctx.fillRect(x,y+size*2,size*5,size);
+  ctx.fillRect(x+size,y+size*3,size*3,size);
+}
+
+function boy(x,y,shirt,hair,kind,t){
+  // kind 0 = boy yang mengelus, kind 1 = boy yang dielus
+  let pat=action==="pat" && Date.now()-actionStart<1300;
+  let hugging=action==="hug" && Date.now()-actionStart<1200;
+  let kissing=action==="kiss" && Date.now()-actionStart<1000;
+  let petWave=pat?Math.abs(Math.sin(t*0.018))*7:0;
+  let headDip=pat&&kind===1?Math.abs(Math.sin(t*0.018))*2:0;
+  let bounce=(action!=="idle"&&Date.now()-actionStart<900)
+    ?Math.abs(Math.sin(t*.015))*2:0;
+  y-=bounce;
+
+  // Kaki
+  rect(x+8,y+67,17,25,"#19212b");
+  rect(x+30,y+67,17,25,"#19212b");
+  rect(x+4,y+88,23,7,"#d7c7ad");
+  rect(x+29,y+88,23,7,"#d7c7ad");
+
+  // Badan
+  rect(x+6,y+35,43,37,shirt);
+  rect(x+1,y+41,10,24,shirt);
+  rect(x+43,y+41,10,24,shirt);
+
+  // Leher dan wajah
+  rect(x+20,y+28-headDip,15,12,"#f1c4a0");
+  rect(x+12,y+7-headDip,32,29,"#f4c9a8");
+  rect(x+9,y+14-headDip,4,13,"#f4c9a8");
+  rect(x+43,y+14-headDip,4,13,"#f4c9a8");
+
+  // Rambut
+  rect(x+10,y+4-headDip,34,9,hair);
+  rect(x+7,y+9-headDip,9,13,hair);
+  rect(x+15,y+7-headDip,8,9,hair);
+  rect(x+26,y+5-headDip,8,10,hair);
+  rect(x+37,y+8-headDip,8,10,hair);
+  rect(x+13,y+16-headDip,6,7,hair);
+  rect(x+25,y+14-headDip,7,5,hair);
+
+  // Mata dan pipi
+  rect(x+17,y+20-headDip,5,3,"#322b32");
+  rect(x+34,y+20-headDip,5,3,"#322b32");
+  rect(x+14,y+25-headDip,7,3,"#e99591");
+  rect(x+36,y+25-headDip,7,3,"#e99591");
+  rect(x+25,y+27-headDip,7,2,"#a85e5e");
+
+  // Lengan dasar
+  rect(x+1,y+43,10,17,"#f1c4a0");
+  rect(x+44,y+43,10,17,"#f1c4a0");
+
+  // Animasi tangan yang mengelus kepala boy kedua
+  if(kind===0 && pat){
+    // Bahu -> siku -> tangan di atas rambut
+    rect(x+39,y+43,9,8,shirt);
+    rect(x+46,y+36,8,9,shirt);
+    rect(x+51,y+27-petWave,8,12,"#f1c4a0");
+    rect(x+49,y+24-petWave,12,7,"#f1c4a0");
+    rect(x+51,y+21-petWave,4,6,"#f1c4a0");
+    rect(x+57,y+21-petWave,4,6,"#f1c4a0");
+  }
+
+  // Animasi pelukan: tangan mengarah ke pasangan
+  if(hugging){
+    rect(x+42,y+42,18,8,shirt);
+    rect(x+52,y+47,9,8,"#f1c4a0");
+  }
+
+  // Tangan boy kedua ikut rileks saat dielus
+  if(kind===1 && pat){
+    rect(x+40,y+43,10,14,shirt);
+    rect(x+37,y+53,10,7,"#f1c4a0");
+  }
+
+  if(kissing && kind===1){
+    rect(x+20,y+26,8,3,"#dc7f86");
+  }
+}
+
+function draw(){
+  const t=Date.now();
+  ctx.clearRect(0,0,480,360);
+
+  // Jendela malam
+  rect(30,25,420,174,"#14253b");
+  rect(35,30,410,164,"#182e46");
+  stars.forEach(s=>{
+    let twinkle=Math.sin(t*.003+s.x)*1.2;
+    rect(s.x,s.y+twinkle,s.s,s.s,"#c2e5d2");
+  });
+
+  // Bulan
+  ctx.fillStyle="#f5e7b5";
+  ctx.beginPath();ctx.arc(394,54,18,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle="#182e46";
+  ctx.beginPath();ctx.arc(403,47,17,0,Math.PI*2);ctx.fill();
+
+  // Kota di luar jendela
+  for(let i=0;i<9;i++){
+    let bx=i*53;
+    let bh=25+(i*17)%60;
+    rect(bx,185-bh,38,bh,"#0b1928");
+    for(let wy=190-bh;wy<185;wy+=12){
+      rect(bx+7,wy,3,4,"#d5b778");
+      rect(bx+23,wy,3,4,"#d5b778");
+    }
+  }
+
+  // Dinding dan lantai
+  rect(0,202,480,158,"#21372e");
+  for(let x=0;x<480;x+=24)rect(x,202,1,158,"#294438");
+  rect(0,278,480,82,"#3b302c");
+  for(let x=0;x<480;x+=32)rect(x,278,1,82,"#504039");
+  for(let y=294;y<360;y+=22)rect(0,y,480,1,"#504039");
+
+  // Karpet
+  rect(80,270,320,75,"#263e35");
+  rect(90,279,300,57,"#315345");
+
+  // Tanaman
+  rect(18,205,29,50,"#503a2d");
+  rect(29,176,5,35,"#568765");
+  rect(15,181,20,8,"#50845f");
+  rect(5,193,24,8,"#427752");
+  rect(32,189,22,8,"#568765");
+  rect(22,168,16,9,"#64966a");
+
+  // Lampu kecil
+  rect(428,207,5,36,"#72543b");
+  rect(416,196,29,12,"#e6c58a");
+  rect(420,188,21,8,"#ffe3a1");
+
+  // Tempat tidur
+  rect(0,226,105,54,"#1a493b");
+  rect(0,222,108,12,"#91bba0");
+  rect(12,231,36,20,"#c9d9bf");
+  rect(52,235,43,43,"#205744");
+
+  // Dua cowok pixel
+  boy(148,184,"#315e48","#211d25",0,t);
+  boy(239,198,"#685178","#382a3a",1,t);
+
+  // Tangan di kepala: digambar ulang di depan rambut agar kontak jelas
+  if(action==="pat"&&t-actionStart<1300){
+    const wave=Math.abs(Math.sin((t-actionStart)*.018))*7;
+    rect(220,221-wave,9,8,"#f1c4a0");
+    rect(226,215-wave,10,7,"#f1c4a0");
+    rect(229,211-wave,4,7,"#f1c4a0");
+  }
+
+  // Hati melayang
+  hearts=hearts.filter(h=>h.life>0);
+  hearts.forEach(h=>{
+    heart(h.x,h.y,3,h.color);
+    h.x+=h.vx;h.y-=h.vy;h.life--;
+  });
+
+  // Partikel hati saat aksi
+  if(action==="kiss"&&t-actionStart<1000){
+    heart(228,170,4,"#ff94b5");
+  }
+  if(action==="love"&&t-actionStart<1200){
+    heart(235,150,4,"#ff94b5");
+  }
+
+  requestAnimationFrame(draw);
+}
+
+function updateUI(){
+  document.getElementById("moodText").textContent=mood+" / 100";
+  document.getElementById("fill").style.width=mood+"%";
+  document.getElementById("status").textContent=
+    mood>=80?"Happy today ♡":mood>=45?"Wants attention...":"Feeling a little sad ♡";
+  document.getElementById("message").textContent=message;
+}
+
+function tick(){
+  if(Date.now()-lastAction>3500){
+    mood=Math.max(0,mood-1);
+    lastAction=Date.now();
+    updateUI();
+  }
+  document.getElementById("toast").textContent=
+    Date.now()<toastUntil?toast:"";
+}
+
+updateUI();
+draw();
+setInterval(tick,1000);
+</script>
+</body>
+</html>
